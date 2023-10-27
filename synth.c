@@ -11,6 +11,8 @@
 typedef struct{
     float phase;
     float phase_stride;
+    float phase_modulation; 
+    float phase_amplitude; 
  }Oscillator;
 
  void setOscFrequency(Oscillator* osc, float frequency)
@@ -27,26 +29,33 @@ typedef struct{
  }
 
  void UpdateOsc(Oscillator* osc){
-    osc->phase += osc->phase_stride;
+    osc->phase += osc->phase_stride + (osc->phase_modulation * osc->phase_amplitude);
     if(osc->phase >= 1.0f)
     {
         osc->phase -= 1.0f;
     }
+
+    if(osc->phase < 0.0f)
+    {
+        osc->phase += 1.0f;
+    }
  }
- void sineWaveOsc(Oscillator* osc){
+ float sineWaveOsc(Oscillator* osc){
 
     return sinf(2.0f * PI * osc->phase);
 
  }
 
 
- void accumulateSignal(float* signal, Oscillator* osc, float amplitude)
+ void accumulateSignal(float* signal, Oscillator* osc, Oscillator* lfo,  float amplitude)
  {
     //osc -> phase += osc -> phase_stride;
     for(size_t j  = 0; j < STREAM_BUFFER_SIZE; j++)
     {
+        UpdateOsc(lfo);
+        osc->phase_modulation = sineWaveOsc(lfo);
         UpdateOsc(osc);
-        signal[j] += sinf(2.0f * PI * osc->phase) * amplitude;
+        signal[j] += sineWaveOsc(osc) * amplitude;
     }
  }
 
@@ -61,7 +70,7 @@ void main(){
 
     unsigned int sample_rate = SAMPLE_RATE; //human rate
     SetAudioStreamBufferSizeDefault(STREAM_BUFFER_SIZE);
-    AudioStream synthStream = LoadAudioStream(sample_rate,sizeof(float) * 8, 1);
+    AudioStream synthStream = LoadAudioStream(SAMPLE_RATE,sizeof(float) * 8, 1);
 
     SetAudioStreamVolume(synthStream, 0.5f);
     PlayAudioStream(synthStream);
@@ -73,7 +82,7 @@ void main(){
     Oscillator osc[NUM_OSCILLATORS] = {0};
 
     //low frequency
-    Oscillator lfo = { .phase = 0.0f, .phase_stride =  1000.0f  * sample_duration}; 
+    Oscillator lfo[NUM_OSCILLATORS] = {0}; 
     setOscFrequency(&lfo, 1.0f * 1024);
     float signal[STREAM_BUFFER_SIZE];
 
@@ -94,7 +103,7 @@ void main(){
 
             zeroSignal(signal);
             UpdateOsc(&lfo);
-            float base_freq = 25.0f + (normalize_mouse_x * 400.0f);
+            float base_freq = 25.0f + (normalize_mouse_x * 400.0f) + (sineWaveOsc(&lfo) * 50.0f); // to have a wowo every second
             for(size_t i = 0; i < NUM_OSCILLATORS; i++)
             {
                 // osc.phase_stride = frequency * sample_duration;
@@ -104,7 +113,7 @@ void main(){
                     frequency = base_freq * i;
                     float phase_stride = frequency * sample_duration;
                     osc[i].phase_stride = phase_stride;
-                    accumulateSignal(signal,&osc[i], 1.0f  / NUM_OSCILLATORS); 
+                    accumulateSignal(signal,&osc[i], &lfo[i],  1.0f  / NUM_OSCILLATORS); 
                 }
                 
 
