@@ -1,1 +1,1 @@
-cc synth.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+cc synth.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -std=c99
