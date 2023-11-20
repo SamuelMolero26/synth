@@ -3,9 +3,11 @@
 #include <math.h>
 
 #define SAMPLE_RATE 48000
-#define STREAM_BUFFER_SIZE 1024
+#define STREAM_BUFFER_SIZE 1014
 #define NUM_OSCILLATORS 128
 #define SAMPLE_DURATION (1.0f / 44100)
+
+#define TABLE_SIZE 360
 
 //different wave forms
  typedef enum {
@@ -25,7 +27,15 @@ typedef struct{
     float transition_factor; 
  }Oscillator;
 
- 
+ float sinLookupTable[TABLE_SIZE];
+
+ void initializeLookupTable()
+ {
+    for(int i = 0; i < TABLE_SIZE; i++)
+    {
+        sinLookupTable[i] = sinf((float)i * (2.0f * PI / TABLE_SIZE));
+    }
+ }
 
 //  void setOscFrequency(Oscillator* osc, float frequency)
 //  {
@@ -66,18 +76,8 @@ typedef struct{
 //support different waveforms
 float waveformOsc(Oscillator* osc)
 {
-    switch (osc->wave_form){
-        case SINE:
-            return sinf(2.0f * PI * osc->phase) * osc->phase_amplitude;
-        case SQUARE:
-            return (osc->phase < 0.5f) ? osc->phase_amplitude : -osc->phase_amplitude;
-        case TRIANGLE:
-            return 1.0f - 4.0f * fabsf(osc->phase - 0.5f);
-        case SAWTOOTH:
-            return 2.0f * (osc->phase - floorf(osc->phase + 0.5f)) * osc->phase_amplitude;
-        default:
-            return 0.0f;
-    }
+    int index = (int)(osc->phase * TABLE_SIZE) % TABLE_SIZE;
+    return osc->phase_amplitude * sinLookupTable[index];
 
 }
 
@@ -85,33 +85,37 @@ float waveformOsc(Oscillator* osc)
  {
     
     //osc -> phase += osc -> phase_stride;
-    const float alpha = 0.5f; // Adjust the filter coefficient
-    for(size_t j  = 0; j < STREAM_BUFFER_SIZE; j++)
-    {
+    // const float alpha = 0.05f; // Adjust the filter coefficient
+    // for(size_t j  = 0; j < STREAM_BUFFER_SIZE; j++)
+    // {
         
-        UpdateOsc(lfo,0.0f);
-        UpdateOsc(osc,waveformOsc(lfo));
+    //     UpdateOsc(lfo,0.6f);    
+    //     UpdateOsc(osc,waveformOsc(lfo));
 
-        //smooth transition
-        float current_sample = waveformOsc(osc);
-        osc->phase_amplitude *= 1.0f - osc->transition_factor;
-        osc->phase_amplitude += osc->transition_factor * osc->phase_amplitude;
-        signal[j] += current_sample;
+    //     //smooth transition
+    //     float current_sample = waveformOsc(osc);
+    //     osc->phase_amplitude *= (0.995f - osc->transition_factor ); 
+    //     osc->phase_amplitude += osc->transition_factor * osc->phase_amplitude;
+    //     signal[j] += current_sample;
 
-        if(signal[j] > 1.0f){ signal[j] = 1.0f;}
-        else if (signal[j] < -1.0f){signal[j] = -1.0f; }
-
-
+    //     if(signal[j] > 1.0f){ signal[j] = 1.0f;}
+    //     else if (signal[j] < -1.0f){signal[j] = -1.0f; }
 
 
-        //updating transition factor
-        osc->transition_factor += 0.001f;
-        if (osc->transition_factor > 1.0f){osc->transition_factor = 0.0f;}
 
-        //low pass filtering for the signal
-        if(j > 0){
-            signal[j] = alpha * signal[j] + (1.0f - alpha) * signal[j - 1];
-        }
+
+    //     //updating transition factor
+    //     osc->transition_factor += 0.00001f;
+    //     if (osc->transition_factor > 1.0f){osc->transition_factor = 0.0f;}
+
+    //     //low pass filtering for the signal
+    //     if(j > 0){
+    //         signal[j] = alpha * signal[j] + (1.0f - alpha) * signal[j - 1];
+    //     }
+    // }
+    for (size_t j = 0; j < STREAM_BUFFER_SIZE; j++) {
+        UpdateOsc(osc, 0.0f);
+        signal[j] += waveformOsc(osc);
     }
  }
 
@@ -130,14 +134,14 @@ void main(){
     SetAudioStreamBufferSizeDefault(STREAM_BUFFER_SIZE);
     AudioStream synthStream = LoadAudioStream(SAMPLE_RATE,sizeof(float) * 8, 1);
 
-    SetAudioStreamVolume(synthStream, 0.008f);
+    SetAudioStreamVolume(synthStream, 0.08f);
     PlayAudioStream(synthStream);
     
 
     // float frequency = 5.0f;
     Oscillator osc[NUM_OSCILLATORS] = {0};
     //low frequency
-    Oscillator lfo = { .phase = 0.0f, .freq = 2.0f, .phase_amplitude = 20.0f };
+    Oscillator lfo = { .phase = 0.0f, .freq = 25.0f, .phase_amplitude = 25.0f };
     
     float signal[STREAM_BUFFER_SIZE];
 
@@ -148,8 +152,8 @@ void main(){
         Vector2 mouse_pos = GetMousePosition();
         float normalize_mouse_x = (mouse_pos.x /(float)screen_width);
         float normalized_mouse_y = (mouse_pos.y / (float)screen_height);
-        float base_freq = 25.0f + (normalize_mouse_x * 200.0f);
-        lfo.freq = 1.0f + (normalized_mouse_y * 1.0f);
+        float base_freq = 20.0f + (normalize_mouse_x * 300.0f);
+        lfo.freq = 10.0f + (normalized_mouse_y * 10.0f);
         lfo.phase_amplitude = 50.0f + (normalize_mouse_x * 50.0f);
 
         float audio_duration = 0.0f;
@@ -166,13 +170,14 @@ void main(){
                 {
                     //float normalized_index = (float)i / NUM_OSCILLATORS;
                     osc[i].freq = base_freq * (i+1);
-                    osc[i].phase_amplitude = 1.0f / (NUM_OSCILLATORS * 4.0f); 
+                    osc[i].phase_amplitude = 0.5f; /// (NUM_OSCILLATORS * 4.0f); 
                     // setOscFrequency(&osc[i], frequency);
-
+                    UpdateOsc(&osc[i],waveformOsc(&lfo));
+                    //signal[i] += waveformOsc(&osc[i]);
                     osc[i].wave_form = (Waveform)(i % 4); // Select waveform based on oscillator index
                     accumulateSignal(signal, &osc[i], &lfo);
                 }
-                
+                printf("Frequency: %f, Amplitude: %f\n", osc->freq, osc->phase_amplitude);
 
             }
         
