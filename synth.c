@@ -63,8 +63,7 @@ typedef struct{
 
 //  }
 
- //support different waveforms
-
+//support different waveforms
 float waveformOsc(Oscillator* osc)
 {
     switch (osc->wave_form){
@@ -86,7 +85,7 @@ float waveformOsc(Oscillator* osc)
  {
     
     //osc -> phase += osc -> phase_stride;
-    const float alpha = 0.1f; // Adjust the filter coefficient
+    const float alpha = 0.5f; // Adjust the filter coefficient
     for(size_t j  = 0; j < STREAM_BUFFER_SIZE; j++)
     {
         
