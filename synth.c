@@ -85,38 +85,38 @@ float waveformOsc(Oscillator* osc)
  {
     
     //osc -> phase += osc -> phase_stride;
-    // const float alpha = 0.05f; // Adjust the filter coefficient
-    // for(size_t j  = 0; j < STREAM_BUFFER_SIZE; j++)
-    // {
+    const float alpha = 0.05f; // Adjust the filter coefficient
+    for(size_t j  = 0; j < STREAM_BUFFER_SIZE; j++)
+    {
         
-    //     UpdateOsc(lfo,0.6f);    
-    //     UpdateOsc(osc,waveformOsc(lfo));
+        UpdateOsc(lfo,0.6f);    
+        UpdateOsc(osc,waveformOsc(lfo));
 
-    //     //smooth transition
-    //     float current_sample = waveformOsc(osc);
-    //     osc->phase_amplitude *= (0.995f - osc->transition_factor ); 
-    //     osc->phase_amplitude += osc->transition_factor * osc->phase_amplitude;
-    //     signal[j] += current_sample;
+        //smooth transition
+        float current_sample = waveformOsc(osc);
+        osc->phase_amplitude *= (0.995f - osc->transition_factor ); 
+        osc->phase_amplitude += osc->transition_factor * osc->phase_amplitude;
+        signal[j] += current_sample;
 
-    //     if(signal[j] > 1.0f){ signal[j] = 1.0f;}
-    //     else if (signal[j] < -1.0f){signal[j] = -1.0f; }
-
-
+        if(signal[j] > 1.0f){ signal[j] = 1.0f;}
+        else if (signal[j] < -1.0f){signal[j] = -1.0f; }
 
 
-    //     //updating transition factor
-    //     osc->transition_factor += 0.00001f;
-    //     if (osc->transition_factor > 1.0f){osc->transition_factor = 0.0f;}
 
-    //     //low pass filtering for the signal
-    //     if(j > 0){
-    //         signal[j] = alpha * signal[j] + (1.0f - alpha) * signal[j - 1];
-    //     }
-    // }
-    for (size_t j = 0; j < STREAM_BUFFER_SIZE; j++) {
-        UpdateOsc(osc, 0.0f);
-        signal[j] += waveformOsc(osc);
+
+        //updating transition factor
+        osc->transition_factor += 0.00001f;
+        if (osc->transition_factor > 1.0f){osc->transition_factor = 0.0f;}
+
+        //low pass filtering for the signal
+        if(j > 0){
+            signal[j] = alpha * signal[j] + (1.0f - alpha) * signal[j - 1];
+        }
     }
+    // for (size_t j = 0; j < STREAM_BUFFER_SIZE; j++) {
+    //     UpdateOsc(osc, 0.0f);
+    //     signal[j] += waveformOsc(osc);
+    // }
  }
 
 
